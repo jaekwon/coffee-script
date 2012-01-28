@@ -495,10 +495,13 @@ exports.Call = class Call extends Base
   # Grab the reference to the superclass's implementation of the current
   # method.
   superReference: (o) ->
-    {method} = o.scope
-    throw SyntaxError 'cannot call super outside of a function.' unless method
-    {name} = method
-    throw SyntaxError 'cannot call super on an anonymous function.' unless name?
+    throw SyntaxError 'cannot call super outside of a function.' unless o.scope.method
+    outer = o.scope
+    while outer.parent? and not outer.method?.name? and not outer.method?.klass? and not outer.method?.ctor?
+      outer = outer.parent
+    {method} = outer
+    {name} = method if method?
+    throw SyntaxError 'cannot call super on an anonymous function.' unless method? and name?
     if method.klass
       accesses = [new Access(new Literal '__super__')]
       accesses.push new Access new Literal 'constructor' if method.static
@@ -550,10 +553,11 @@ exports.Call = class Call extends Base
     else
       (if @isNew then 'new ' else '') + @variable.compile(o, LEVEL_ACCESS) + "(#{args})"
 
+  # DEPRECATED?
   # `super()` is converted into a call against the superclass's implementation
   # of the current function.
-  compileSuper: (args, o) ->
-    "#{@superReference(o)}.call(this#{ if args.length then ', ' else '' }#{args})"
+  #compileSuper: (args, o) ->
+  #  "#{@superReference(o)}.call(this#{ if args.length then ', ' else '' }#{args})"
 
   # If you call a function with a splat, it's converted into a JavaScript
   # `.apply()` call to allow an array of arguments to be passed.
